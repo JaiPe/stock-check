@@ -1,0 +1,5 @@
+# stock-check
+
+```
+yarn start
+```
