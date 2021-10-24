@@ -2,7 +2,7 @@
   "name": "stock-check",
   "version": "0.0.1",
   "main": "./build/index.js",
-  "files": ["src", "build"],
+  "files": ["src"],
   "scripts": {
     "start": "tsc && node .",
     "dev": "ts-node-dev --respawn --transpileOnly ./src/index.ts",
