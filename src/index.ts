@@ -1,5 +1,6 @@
 import puppeteer, { Browser, EvaluateFn, Page } from "puppeteer";
 import ping from "ping";
+import beepbeep from "beepbeep";
 
 type Store = {
   title: string;
@@ -11,6 +12,12 @@ type Store = {
 };
 
 type Stockist = Store & { image: string; page: Page };
+
+const proxies = process.env.PROXY_LIST ? JSON.parse(process.env.PROXY_LIST) : [];
+
+if (proxies.length) {
+  console.log(`Loaded proxies: ${proxies.join(', ')}`)
+}
 
 const search: Store[] = [
   {
@@ -232,6 +239,7 @@ async function createPage(
 
 async function getStockists(browser: Browser) {
   const stockists: Stockist[] = [];
+  let connectionErrors = 0;
   for (let descriptor of search) {
     try {
       const page = await createPage(descriptor.url, browser);
@@ -256,10 +264,11 @@ async function getStockists(browser: Browser) {
         page.close();
       }
     } catch (e) {
+      connectionErrors += (e instanceof Error && e.message.includes('net::') && e.message.includes('_CONNECTION')) ? 1 : 0;
       console.error(`Skipping ${descriptor.title}: ${e}`);
     }
   }
-  return stockists;
+  return { connectionErrors, stockists };
 }
 
 async function addToCarts(stockists: Stockist[]) {
@@ -287,15 +296,15 @@ async function checkProxy(proxy: string) {
       args: proxy ? [`--proxy-server=${proxy}`] : [],
       timeout: 5000,
     });
-    const page = await createPage("http://www.google.com", browser, {
+    await createPage("https://www.google.com", browser, {
       timeout: 5000,
+      waitUntil: 'load'
     });
-    page.close();
-    browser.close();
+    await browser.close();
     return true;
   } catch (e) {
     if (browser) {
-      browser.close();
+      await browser.close();
     }
     return false;
   }
@@ -314,15 +323,11 @@ async function selectProxy(proxies: string[]): Promise<string | null> {
       );
       return proxies[selectedProxyIndex];
     }
-    console.log(
-      `Proxy ${proxies[selectedProxyIndex]} connection failed. Removing from list`
-    );
     proxies.splice(selectedProxyIndex, 1);
   }
   console.warn("No suitable proxy found. Running without proxy.");
   return null;
 }
-
 async function poll(proxies: string[]) {
   const proxy = await selectProxy(proxies);
   const browser = await puppeteer.launch({
@@ -331,12 +336,15 @@ async function poll(proxies: string[]) {
   });
 
   console.log("Checking stock...");
-  const stockists = await getStockists(browser);
+  const { connectionErrors, stockists } = await getStockists(browser);
   if (stockists.length) {
     await addToCarts(stockists);
   }
 
-  stockists.forEach(async ({ page }) => await page.close());
+  if (proxy && connectionErrors > 1) {
+    console.warn(`${connectionErrors} connection errors occurred. Removing proxy ${proxy} from list.`);
+    proxies.splice(proxies.indexOf(proxy), 1);
+  }
 
   await browser.close();
   return stockists;
@@ -344,6 +352,7 @@ async function poll(proxies: string[]) {
 
 async function report(stockists: Stockist[]) {
   if (stockists.length) {
+    beepbeep(stockists.length);
     console.log(
       `In stock at:\n\n${stockists
         .map(
@@ -357,11 +366,6 @@ async function report(stockists: Stockist[]) {
   }
 }
 (async function (interval: number = 30) {
-  const proxies = process.env.PROXY_LIST ? JSON.parse(process.env.PROXY_LIST) : [];
-  if (proxies.length) {
-    console.log(`Loaded proxies: ${proxies.join(', ')}`)
-  }
-  
   await report(await poll(proxies));
   if (interval > 0) {
     console.log(`Retrying again in ${interval} minute(s)...`);
