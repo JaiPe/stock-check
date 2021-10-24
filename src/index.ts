@@ -3,8 +3,8 @@ import puppeteer, { Browser, EvaluateFn, Page } from "puppeteer";
 type Store = {
   title: string;
   url: string;
-  selector?: string;
-  addToCart?: EvaluateFn<Promise<boolean>>;
+  selector: string;
+  addToCart: EvaluateFn<Promise<boolean>>;
   isInStock: (el: string | null) => boolean;
   isPageValid: (el: string) => boolean;
 };
@@ -14,6 +14,10 @@ type Stockist = Store & { image: string; page: Page };
 const search: Store[] = [
   {
     title: "John Lewis",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.johnlewis.com/sony-playstation-5-console-with-dualsense-controller/p5115192",
     selector: ".add-to-basket-summary-and-cta .u-centred",
     isPageValid(el) {
@@ -25,6 +29,10 @@ const search: Store[] = [
   },
   {
     title: "Amazon",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.amazon.co.uk/PlayStation-9395003-5-Console/dp/B08H95Y452",
     selector: "#add-to-cart-button",
     isPageValid(el) {
@@ -36,8 +44,13 @@ const search: Store[] = [
   },
   {
     title: "Smyths Toys",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-console/p/191259",
-    selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+    selector:
+      ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
     isPageValid(el) {
       return el.includes('id="#hdNotAvailable"');
     },
@@ -47,8 +60,13 @@ const search: Store[] = [
   },
   {
     title: "Smyths Toys (Digital Edition)",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-digital-edition-console/p/191430",
-    selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+    selector:
+      ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
     isPageValid(el) {
       return el.includes('id="#hdNotAvailable"');
     },
@@ -59,6 +77,10 @@ const search: Store[] = [
   {
     url: "https://www.shopto.net/en/ps5hw01-playstation-5-console-p191472/",
     title: "Shop-to",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     selector: ".itemcard_order_submit_button:not(:disabled)",
     isPageValid(el) {
       return el.includes("Sold out");
@@ -70,6 +92,10 @@ const search: Store[] = [
   {
     url: "https://www.box.co.uk/CFI-1015B-Sony-PlayStation-5-Digital-Edition-Conso_3199692.html",
     title: "Box (Digital Edition)",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     selector: "[data-procedure='Add to Basket']",
     isPageValid(el) {
       return el.includes("Coming Soon") && el.includes("Request Stock Alert");
@@ -81,6 +107,10 @@ const search: Store[] = [
   {
     url: "https://www.box.co.uk/CFI-1015A-Sony-Playstation-5-Console_3199689.html",
     title: "Box",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     selector: "[data-procedure='Add to Basket']",
     isPageValid(el) {
       // TODO: Add check for page validity
@@ -93,6 +123,10 @@ const search: Store[] = [
   {
     url: "https://www.board-game.co.uk/product/playstation-5/",
     title: "Board Game",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     isInStock: (el: string | null) => {
       return el !== null;
     },
@@ -104,6 +138,10 @@ const search: Store[] = [
   {
     url: "https://www.board-game.co.uk/product/playstation-5-digital-edition/",
     title: "Board Game (Digital Edition)",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     isInStock: (el: string | null) => {
       return el !== null;
     },
@@ -114,6 +152,10 @@ const search: Store[] = [
   },
   {
     title: "Argos",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.argos.co.uk/product/6795199",
     selector: "[data-test='add-to-trolley-button-button']",
     isPageValid(el) {
@@ -125,6 +167,10 @@ const search: Store[] = [
   },
   {
     title: "Argos (Digital Edition)",
+    async addToCart() {
+      // TODO: Add to basket
+      console.warn("Missing `addToCart` function!");
+    },
     url: "https://www.argos.co.uk/product/6795151",
     selector: "[data-test='add-to-trolley-button-button']",
     isPageValid(el) {
@@ -180,6 +226,7 @@ async function getStockists(browser: Browser) {
   for (let descriptor of search) {
     try {
       const page = await createPage(descriptor.url, browser);
+      debugger;
       const result = await hasStock(page, descriptor);
       if (result) {
         const imagePath = `./.tmp/${
@@ -207,17 +254,30 @@ async function getStockists(browser: Browser) {
   return stockists;
 }
 
+async function addToCarts(stockists: Stockist[]) {
+  for (const stockist of stockists) {
+    const { addToCart, page } = stockist;
+    try {
+      if (addToCart) {
+        await page.evaluate(addToCart);
+      }
+      await page.close();
+    } catch (e) {
+      console.log(e);
+    }
+  }
+}
+
 async function poll() {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({headless: false});
   console.log("Checking stock...");
   const stockists = await getStockists(browser);
-  stockists.forEach(async (descriptor) => {
-    const { addToCart, page } = descriptor;
-    if (addToCart) {
-      await page.evaluate(addToCart);
-    }
-    page.close();
-  });
+  if (stockists.length) {
+    await addToCarts(stockists);
+  }
+
+  stockists.forEach(async ({ page }) => await page.close());
+
   await browser.close();
   return stockists;
 }
@@ -237,13 +297,13 @@ async function report(stockists: Stockist[]) {
   }
 }
 
-(async function (interval: number = 10) {
+(async function (interval: number = 30) {
   await report(await poll());
   if (interval > 0) {
-    console.log(`Retrying again in ${interval} minutes...`);
+    console.log(`Retrying again in ${interval} minute(s)...`);
     setInterval(async () => {
       report(await poll());
-      console.log(`Retrying again in ${interval} minutes...`);
+      console.log(`Retrying again in ${interval} minute(s)...`);
     }, interval * 60000);
   }
 })(5);
