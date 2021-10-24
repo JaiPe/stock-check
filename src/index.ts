@@ -226,7 +226,6 @@ async function getStockists(browser: Browser) {
   for (let descriptor of search) {
     try {
       const page = await createPage(descriptor.url, browser);
-      debugger;
       const result = await hasStock(page, descriptor);
       if (result) {
         const imagePath = `./.tmp/${
@@ -269,7 +268,7 @@ async function addToCarts(stockists: Stockist[]) {
 }
 
 async function poll() {
-  const browser = await puppeteer.launch({headless: false});
+  const browser = await puppeteer.launch();
   console.log("Checking stock...");
   const stockists = await getStockists(browser);
   if (stockists.length) {
