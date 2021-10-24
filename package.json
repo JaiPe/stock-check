@@ -2,7 +2,9 @@
   "name": "stock-check",
   "version": "0.0.1",
   "main": "./build/index.js",
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "start": "tsc && node .",
     "dev": "ts-node-dev --respawn --transpileOnly ./src/index.ts",
@@ -10,6 +12,7 @@
   },
   "dependencies": {
     "@types/puppeteer": "^5.4.3",
+    "ping": "^0.4.1",
     "puppeteer": "^7.1.0",
     "ts-node-dev": "^1.1.1",
     "typescript": "^4.1.5"

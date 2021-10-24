@@ -1,4 +1,5 @@
 import puppeteer, { Browser, EvaluateFn, Page } from "puppeteer";
+import ping from "ping";
 
 type Store = {
   title: string;
@@ -207,7 +208,15 @@ async function hasStock(
   throw new Error("Page invalid - maybe a CAPTCHA?");
 }
 
-async function createPage(url: string, browser: Browser): Promise<Page> {
+async function createPage(
+  url: string,
+  browser: Browser,
+  pageOptions?:
+    | (puppeteer.WaitForOptions & {
+        referer?: string | undefined;
+      })
+    | undefined
+): Promise<Page> {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", (request) => {
@@ -216,7 +225,7 @@ async function createPage(url: string, browser: Browser): Promise<Page> {
     }
     request.abort();
   });
-  await page.goto(url);
+  await page.goto(url, pageOptions);
 
   return page;
 }
@@ -267,8 +276,60 @@ async function addToCarts(stockists: Stockist[]) {
   }
 }
 
-async function poll() {
-  const browser = await puppeteer.launch();
+async function checkProxy(proxy: string) {
+  let browser;
+  try {
+    if (!(await ping.promise.probe(proxy))) {
+      return false;
+    }
+
+    browser = await puppeteer.launch({
+      args: proxy ? [`--proxy-server=${proxy}`] : [],
+      timeout: 5000,
+    });
+    const page = await createPage("http://www.google.com", browser, {
+      timeout: 5000,
+    });
+    page.close();
+    browser.close();
+    return true;
+  } catch (e) {
+    if (browser) {
+      browser.close();
+    }
+    return false;
+  }
+}
+
+async function selectProxy(proxies: string[]): Promise<string | null> {
+  let selectedProxyIndex = -1;
+
+  while (proxies.length) {
+    selectedProxyIndex = Math.floor(Math.random() * proxies.length);
+
+    const isAlive = await checkProxy(proxies[selectedProxyIndex]);
+    if (isAlive) {
+      console.log(
+        `Proxy ${proxies[selectedProxyIndex]} is working! I'll use this...`
+      );
+      return proxies[selectedProxyIndex];
+    }
+    console.log(
+      `Proxy ${proxies[selectedProxyIndex]} connection failed. Removing from list`
+    );
+    proxies.splice(selectedProxyIndex, 1);
+  }
+  console.warn("No suitable proxy found. Running without proxy.");
+  return null;
+}
+
+async function poll(proxies: string[]) {
+  const proxy = await selectProxy(proxies);
+  const browser = await puppeteer.launch({
+    args: proxy ? [`--proxy-server=${proxy}`] : [],
+    timeout: 5000,
+  });
+
   console.log("Checking stock...");
   const stockists = await getStockists(browser);
   if (stockists.length) {
@@ -295,13 +356,17 @@ async function report(stockists: Stockist[]) {
     console.log("No stock yet...");
   }
 }
-
 (async function (interval: number = 30) {
-  await report(await poll());
+  const proxies = process.env.PROXY_LIST ? JSON.parse(process.env.PROXY_LIST) : [];
+  if (proxies.length) {
+    console.log(`Loaded proxies: ${proxies.join(', ')}`)
+  }
+  
+  await report(await poll(proxies));
   if (interval > 0) {
     console.log(`Retrying again in ${interval} minute(s)...`);
     setInterval(async () => {
-      report(await poll());
+      report(await poll(proxies));
       console.log(`Retrying again in ${interval} minute(s)...`);
     }, interval * 60000);
   }
