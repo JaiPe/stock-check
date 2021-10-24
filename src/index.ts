@@ -5,7 +5,8 @@ type Store = {
   url: string;
   selector?: string;
   addToCart?: EvaluateFn<Promise<boolean>>;
-  queryStock: (el: string | null, url: string) => boolean;
+  isInStock: (el: string | null) => boolean;
+  isPageValid: (el: string) => boolean;
 };
 
 type Stockist = Store & { image: string; page: Page };
@@ -13,122 +14,163 @@ type Stockist = Store & { image: string; page: Page };
 const search: Store[] = [
   {
     title: "John Lewis",
-    url:
-      "https://www.johnlewis.com/sony-playstation-5-console-with-dualsense-controller/p5115192",
-    selector: "#button--add-to-basket-out-of-stock",
-    queryStock: (el: string | null) => el !== null && !/Out of stock/.test(el),
+    url: "https://www.johnlewis.com/sony-playstation-5-console-with-dualsense-controller/p5115192",
+    selector: ".add-to-basket-summary-and-cta .u-centred",
+    isPageValid(el) {
+      return el.includes("#button--add-to-basket-out-of-stock");
+    },
+    isInStock(el) {
+      return el !== null && el.match(/Currently in stock online/) !== null;
+    },
   },
   {
     title: "Amazon",
-    url:
-      "https://www.amazon.co.uk/PlayStation-9395003-5-Console/dp/B08H95Y452",
-    selector: "#outOfStock",
-    queryStock: (el: string | null) => !el
+    url: "https://www.amazon.co.uk/PlayStation-9395003-5-Console/dp/B08H95Y452",
+    selector: "#add-to-cart-button",
+    isPageValid(el) {
+      return el.includes("Currently unavailable.");
+    },
+    isInStock(el) {
+      return el !== null && el.includes("Add to Basket");
+    },
   },
   {
     title: "Smyths Toys",
-    url:
-      "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-console/p/191259",
-    selector: "#hdNotAvailable",
-    queryStock: (el: string | null) =>
-      el === null || !el.includes('value="true"'),
+    url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-console/p/191259",
+    selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+    isPageValid(el) {
+      return el.includes('id="#hdNotAvailable"');
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
     title: "Smyths Toys (Digital Edition)",
-    url:
-      "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-digital-edition-console/p/191430",
-    selector: "#hdNotAvailable",
-    queryStock: (el: string | null) =>
-      el === null || !el.includes('value="true"'),
+    url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-digital-edition-console/p/191430",
+    selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+    isPageValid(el) {
+      return el.includes('id="#hdNotAvailable"');
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
     url: "https://www.shopto.net/en/ps5hw01-playstation-5-console-p191472/",
     title: "Shop-to",
-    selector: "#itemcard_order_button_form_std > .not_available",
-    queryStock: (el: string | null) => el === null,
+    selector: ".itemcard_order_submit_button:not(:disabled)",
+    isPageValid(el) {
+      return el.includes("Sold out");
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
-    url:
-      "https://www.box.co.uk/CFI-1015B-Sony-PlayStation-5-Digital-Edition-Conso_3199692.html",
+    url: "https://www.box.co.uk/CFI-1015B-Sony-PlayStation-5-Digital-Edition-Conso_3199692.html",
     title: "Box (Digital Edition)",
     selector: "[data-procedure='Add to Basket']",
-    queryStock: (el: string | null) => el !== null,
+    isPageValid(el) {
+      return el.includes("Coming Soon") && el.includes("Request Stock Alert");
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
-    url:
-      "https://www.box.co.uk/CFI-1015A-Sony-Playstation-5-Console_3199689.html",
+    url: "https://www.box.co.uk/CFI-1015A-Sony-Playstation-5-Console_3199689.html",
     title: "Box",
     selector: "[data-procedure='Add to Basket']",
-    queryStock: (el: string | null) => el !== null,
+    isPageValid(el) {
+      // TODO: Add check for page validity
+      return el.includes("Coming Soon") && el.includes("Request Stock Alert");
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
     url: "https://www.board-game.co.uk/product/playstation-5/",
     title: "Board Game",
-    queryStock: (_el: string | null, url: string) => {
-      return !url.endsWith("ps5-update/");
+    isInStock: (el: string | null) => {
+      return el !== null;
+    },
+    selector: ".single_add_to_cart_button",
+    isPageValid(el) {
+      return el.includes("5 is currently unavailable.");
     },
   },
   {
     url: "https://www.board-game.co.uk/product/playstation-5-digital-edition/",
     title: "Board Game (Digital Edition)",
-    queryStock: (_el: string | null, url: string) => {
-      return !url.endsWith("ps5-update/");
+    isInStock: (el: string | null) => {
+      return el !== null;
+    },
+    selector: ".single_add_to_cart_button",
+    isPageValid(el) {
+      return el.includes("5 is currently unavailable.");
     },
   },
   {
     title: "Argos",
     url: "https://www.argos.co.uk/product/6795199",
-    selector: "#h1title",
-    queryStock: (el: string | null) =>
-      el === null ||
-      !el.includes("Sorry, PlayStation®5 is currently unavailable."),
+    selector: "[data-test='add-to-trolley-button-button']",
+    isPageValid(el) {
+      return el.includes("Sorry, PlayStation®5 is currently unavailable.");
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
   {
     title: "Argos (Digital Edition)",
     url: "https://www.argos.co.uk/product/6795151",
-    selector: "#h1title",
-    queryStock: (el: string | null) =>
-      el === null ||
-      !el.includes("Sorry, PlayStation®5 is currently unavailable."),
+    selector: "[data-test='add-to-trolley-button-button']",
+    isPageValid(el) {
+      return el.includes("Sorry, PlayStation®5 is currently unavailable.");
+    },
+    isInStock(el) {
+      return el !== null;
+    },
   },
 ];
 
-async function hasStock(page: Page, { selector, queryStock }: Store) {
-  const selection = await page.evaluate((pageSelector): string | null => {
-    const node = pageSelector && document.querySelector(pageSelector);
+async function hasStock(
+  page: Page,
+  { selector, isPageValid, isInStock }: Store
+) {
+  const { selection, body } = await page.evaluate(
+    (pageSelector): { selection: string | null; body: string | undefined } => {
+      const node = pageSelector && document.querySelector(pageSelector);
 
-    return node ? node.outerHTML : node;
-  }, selector || null);
+      return {
+        selection: node ? node.outerHTML : node,
+        body: document.querySelector("body")?.outerHTML,
+      };
+    },
+    selector || null
+  );
 
-  if (queryStock(selection, page.url())) {
+  if (isInStock(selection)) {
     return true;
   }
-  return false;
+  if (body !== undefined && isPageValid(body)) {
+    return false;
+  }
+  throw new Error("Page invalid - maybe a CAPTCHA?");
 }
 
 async function createPage(url: string, browser: Browser): Promise<Page> {
   const page = await browser.newPage();
   await page.setRequestInterception(true);
   page.on("request", (request) => {
-    if (!request.isNavigationRequest()) {
-      request.continue();
-      return;
+    if (request.isNavigationRequest()) {
+      return request.continue();
     }
-    // Add a new header for navigation request.
-    const headers = request.headers();
-    request.continue({
-      headers: {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-        "method": "GET",
-        ["sec-ch-ua"]:
-          '"Chromium";v="88", "Google Chrome";v="88", ";Not A Brand";v="99"',
-        ["User-Agent"]:
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36",
-      },
-    });
+    request.abort();
   });
   await page.goto(url);
-
 
   return page;
 }
@@ -152,9 +194,7 @@ async function getStockists(browser: Browser) {
           image: imagePath,
         });
       } else {
-        const imagePath = `./.tmp/fail-${
-          descriptor.title
-        }.png`;
+        const imagePath = `./.tmp/fail-${descriptor.title}.png`;
         await page.screenshot({
           path: imagePath,
         });
@@ -197,13 +237,13 @@ async function report(stockists: Stockist[]) {
   }
 }
 
-(async function (interval: number = 60) {
+(async function (interval: number = 10) {
   await report(await poll());
   if (interval > 0) {
-    console.log(`Retrying again in ${interval} seconds...`);
+    console.log(`Retrying again in ${interval} minutes...`);
     setInterval(async () => {
       report(await poll());
-      console.log(`Retrying again in ${interval} seconds...`);
-    }, interval * 1000);
+      console.log(`Retrying again in ${interval} minutes...`);
+    }, interval * 60000);
   }
-})(60);
+})(5);

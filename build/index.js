@@ -55,98 +55,149 @@ var search = [
     {
         title: "John Lewis",
         url: "https://www.johnlewis.com/sony-playstation-5-console-with-dualsense-controller/p5115192",
-        selector: "#button--add-to-basket-out-of-stock",
-        queryStock: function (el) { return el !== null && !/Out of stock/.test(el); },
+        selector: ".add-to-basket-summary-and-cta .u-centred",
+        isPageValid: function (el) {
+            return el.includes("#button--add-to-basket-out-of-stock");
+        },
+        isInStock: function (el) {
+            return el !== null && el.match(/Currently in stock online/) !== null;
+        },
     },
     {
         title: "Amazon",
         url: "https://www.amazon.co.uk/PlayStation-9395003-5-Console/dp/B08H95Y452",
-        selector: "#outOfStock",
-        queryStock: function (el) { return !el; }
+        selector: "#add-to-cart-button",
+        isPageValid: function (el) {
+            return el.includes("Currently unavailable.");
+        },
+        isInStock: function (el) {
+            return el !== null && el.includes("Add to Basket");
+        },
     },
     {
         title: "Smyths Toys",
         url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-console/p/191259",
-        selector: "#hdNotAvailable",
-        queryStock: function (el) {
-            return el === null || !el.includes('value="true"');
+        selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+        isPageValid: function (el) {
+            return el.includes('id="#hdNotAvailable"');
+        },
+        isInStock: function (el) {
+            return el !== null;
         },
     },
     {
         title: "Smyths Toys (Digital Edition)",
         url: "https://www.smythstoys.com/uk/en-gb/video-games-and-tablets/playstation-5/playstation-5-consoles/playstation-5-digital-edition-console/p/191430",
-        selector: "#hdNotAvailable",
-        queryStock: function (el) {
-            return el === null || !el.includes('value="true"');
+        selector: ".AddToCart-AddToCartAction #customAddToCartForm > #addToCartButton",
+        isPageValid: function (el) {
+            return el.includes('id="#hdNotAvailable"');
+        },
+        isInStock: function (el) {
+            return el !== null;
         },
     },
     {
         url: "https://www.shopto.net/en/ps5hw01-playstation-5-console-p191472/",
         title: "Shop-to",
-        selector: "#itemcard_order_button_form_std > .not_available",
-        queryStock: function (el) { return el === null; },
+        selector: ".itemcard_order_submit_button:not(:disabled)",
+        isPageValid: function (el) {
+            return el.includes("Sold out");
+        },
+        isInStock: function (el) {
+            return el !== null;
+        },
     },
     {
         url: "https://www.box.co.uk/CFI-1015B-Sony-PlayStation-5-Digital-Edition-Conso_3199692.html",
         title: "Box (Digital Edition)",
         selector: "[data-procedure='Add to Basket']",
-        queryStock: function (el) { return el !== null; },
+        isPageValid: function (el) {
+            return el.includes("Coming Soon") && el.includes("Request Stock Alert");
+        },
+        isInStock: function (el) {
+            return el !== null;
+        },
     },
     {
         url: "https://www.box.co.uk/CFI-1015A-Sony-Playstation-5-Console_3199689.html",
         title: "Box",
         selector: "[data-procedure='Add to Basket']",
-        queryStock: function (el) { return el !== null; },
+        isPageValid: function (el) {
+            // TODO: Add check for page validity
+            return el.includes("Coming Soon") && el.includes("Request Stock Alert");
+        },
+        isInStock: function (el) {
+            return el !== null;
+        },
     },
     {
         url: "https://www.board-game.co.uk/product/playstation-5/",
         title: "Board Game",
-        queryStock: function (_el, url) {
-            return !url.endsWith("ps5-update/");
+        isInStock: function (el) {
+            return el !== null;
+        },
+        selector: ".single_add_to_cart_button",
+        isPageValid: function (el) {
+            return el.includes("5 is currently unavailable.");
         },
     },
     {
         url: "https://www.board-game.co.uk/product/playstation-5-digital-edition/",
         title: "Board Game (Digital Edition)",
-        queryStock: function (_el, url) {
-            return !url.endsWith("ps5-update/");
+        isInStock: function (el) {
+            return el !== null;
+        },
+        selector: ".single_add_to_cart_button",
+        isPageValid: function (el) {
+            return el.includes("5 is currently unavailable.");
         },
     },
     {
         title: "Argos",
         url: "https://www.argos.co.uk/product/6795199",
-        selector: "#h1title",
-        queryStock: function (el) {
-            return el === null ||
-                !el.includes("Sorry, PlayStation®5 is currently unavailable.");
+        selector: "[data-test='add-to-trolley-button-button']",
+        isPageValid: function (el) {
+            return el.includes("Sorry, PlayStation®5 is currently unavailable.");
+        },
+        isInStock: function (el) {
+            return el !== null;
         },
     },
     {
         title: "Argos (Digital Edition)",
         url: "https://www.argos.co.uk/product/6795151",
-        selector: "#h1title",
-        queryStock: function (el) {
-            return el === null ||
-                !el.includes("Sorry, PlayStation®5 is currently unavailable.");
+        selector: "[data-test='add-to-trolley-button-button']",
+        isPageValid: function (el) {
+            return el.includes("Sorry, PlayStation®5 is currently unavailable.");
+        },
+        isInStock: function (el) {
+            return el !== null;
         },
     },
 ];
 function hasStock(page, _a) {
-    var selector = _a.selector, queryStock = _a.queryStock;
+    var selector = _a.selector, isPageValid = _a.isPageValid, isInStock = _a.isInStock;
     return __awaiter(this, void 0, void 0, function () {
-        var selection;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
+        var _b, selection, body;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
                 case 0: return [4 /*yield*/, page.evaluate(function (pageSelector) {
+                        var _a;
                         var node = pageSelector && document.querySelector(pageSelector);
-                        return node ? node.outerHTML : node;
+                        return {
+                            selection: node ? node.outerHTML : node,
+                            body: (_a = document.querySelector("body")) === null || _a === void 0 ? void 0 : _a.outerHTML,
+                        };
                     }, selector || null)];
                 case 1:
-                    selection = _b.sent();
-                    if (queryStock(selection, page.url())) {
+                    _b = _c.sent(), selection = _b.selection, body = _b.body;
+                    if (isInStock(selection)) {
                         return [2 /*return*/, true];
                     }
-                    return [2 /*return*/, false];
+                    if (body !== undefined && isPageValid(body)) {
+                        return [2 /*return*/, false];
+                    }
+                    throw new Error("Page invalid - maybe a CAPTCHA?");
             }
         });
     });
@@ -163,22 +214,10 @@ function createPage(url, browser) {
                 case 2:
                     _a.sent();
                     page.on("request", function (request) {
-                        var _a;
-                        if (!request.isNavigationRequest()) {
-                            request.continue();
-                            return;
+                        if (request.isNavigationRequest()) {
+                            return request.continue();
                         }
-                        // Add a new header for navigation request.
-                        var headers = request.headers();
-                        request.continue({
-                            headers: (_a = {
-                                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                                    "method": "GET"
-                                },
-                                _a["sec-ch-ua"] = '"Chromium";v="88", "Google Chrome";v="88", ";Not A Brand";v="99"',
-                                _a["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.104 Safari/537.36",
-                                _a),
-                        });
+                        request.abort();
                     });
                     return [4 /*yield*/, page.goto(url)];
                 case 3:
@@ -297,7 +336,7 @@ function report(stockists) {
     });
 }
 (function (interval) {
-    if (interval === void 0) { interval = 60; }
+    if (interval === void 0) { interval = 10; }
     return __awaiter(this, void 0, void 0, function () {
         var _a;
         var _this = this;
@@ -310,7 +349,7 @@ function report(stockists) {
                 case 2:
                     _b.sent();
                     if (interval > 0) {
-                        console.log("Retrying again in " + interval + " seconds...");
+                        console.log("Retrying again in " + interval + " minutes...");
                         setInterval(function () { return __awaiter(_this, void 0, void 0, function () {
                             var _a;
                             return __generator(this, function (_b) {
@@ -320,14 +359,14 @@ function report(stockists) {
                                         return [4 /*yield*/, poll()];
                                     case 1:
                                         _a.apply(void 0, [_b.sent()]);
-                                        console.log("Retrying again in " + interval + " seconds...");
+                                        console.log("Retrying again in " + interval + " minutes...");
                                         return [2 /*return*/];
                                 }
                             });
-                        }); }, interval * 1000);
+                        }); }, interval * 60000);
                     }
                     return [2 /*return*/];
             }
         });
     });
-})(60);
+})(5);
